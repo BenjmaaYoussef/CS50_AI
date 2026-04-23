@@ -231,23 +231,41 @@ This phase is deliberately scoped to the user because it needs the five `results
 
 ### 5.1 Inputs expected
 
-- `notebooks/01_preprocessing.ipynb` + `artifacts/prepared_data.pkl`
-- `notebooks/02_model_knn.ipynb` + `results/knn_results.pkl`
-- `notebooks/03_model_sgd.ipynb` + `results/sgd_results.pkl`
-- `notebooks/04_model_svm.ipynb` + `results/svm_results.pkl`
-- `notebooks/05_model_rf.ipynb` + `results/rf_results.pkl`
-- `notebooks/06_model_xgb.ipynb` + `results/xgb_results.pkl`
+- `artifacts/prepared_data.pkl` — the only required external dependency, produced by Phase 0.
+
+The phase notebooks (`02` through `06`) are **development references only** — they are not read, imported, or depended on by Phase 6. Their pkl outputs (`results/*.pkl`) are not prerequisites. Phase 6 trains all models inline from scratch.
 
 ### 5.2 Outputs
 
-- `notebooks/07_final_merged.ipynb` — single cohesive notebook matching Section 10.2 of `docs.md` (sections 1-14 in one document).
-- `report/report.pdf` — 7-12 pages, structured per Section 9.2 of `docs.md`.
+- `notebooks/07_final_merged.ipynb` — the single submitted notebook. Fully self-contained: trains all models inline, produces all charts, runs inference. A grader opening this file in a clean environment with only `artifacts/prepared_data.pkl` present must be able to hit "Run All" with no errors.
 - `results/comparison_table.csv` — the 5-model metric summary (Section 7.5 of `docs.md`).
+- `results/*_results.pkl` — optional mid-notebook checkpoints saved after each model trains. The notebook produces these; it does not depend on them existing beforehand.
 - `README.md` — run instructions and team roster.
+
+> **PDF report is out of scope for this phase.** It will be produced separately after the notebook is confirmed correct.
 
 ### 5.3 Phase-6 prompt (to run after inputs are assembled)
 
-> Merge the six phase notebooks into `notebooks/07_final_merged.ipynb` following Section 10.2 of `docs.md` exactly (sections 1 through 14). Load each `results/*_results.pkl` and build (a) the **5-model comparison table** per Section 7.5, (b) the **ROC-curve overlay** with AUCs in the legend, (c) the **Precision-Recall curve overlay**, (d) the **Train-vs-Test F1 bar chart** (5 models × 2 bars — demonstrates the Lecture 4 overfitting concept), (e) the **5-fold CV box plot** across models. Implement Section 8 (Inference Stage): apply the saved scaler/encoder from `prepared_data.pkl` to `df_inference_raw` (never refit), run `.predict` and `.predict_proba` of the model selected by Section 8.2's data-driven rule, and display a results table with true label, predicted label, risk probability. Write the final PDF report per Section 9.2 (7-12 pages, Introduction / Background / Methodology / Results / Conclusion / References). Save the comparison table as `results/comparison_table.csv`. In the Methodology section, cite Lecture 4 by concept (nearest-neighbor, perceptron + learning rule, maximum-margin separator, loss functions, regularization) rather than by slide number.
+> Build `notebooks/07_final_merged.ipynb` as a single, fully self-contained notebook. The only external dependency is `artifacts/prepared_data.pkl` — do not load from any pre-existing `results/*.pkl` file and do not read or reference any phase notebook file. The notebook must run top-to-bottom with no errors in a clean environment where only `artifacts/prepared_data.pkl` exists.
+>
+> **Data loading:** Load `artifacts/prepared_data.pkl` once at the top. Extract `X_train`, `X_test`, `y_train`, `y_test`, `feature_names`, `scaler`, `encoder`, `df_inference_raw`, and `df_inference_processed`.
+>
+> **Train all five models inline in this order:**
+> 1. **k-NN** — subsample to 25K rows with `resample(..., replace=False, stratify=y_train, random_state=42)`, use `KNeighborsClassifier(algorithm='ball_tree', n_jobs=-1)` inside `GridSearchCV(cv=5, scoring='f1', n_jobs=-1)` per Section 5.1. Produce the k vs. validation F1 curve.
+> 2. **SGDClassifier** — `SGDClassifier(loss='modified_huber', learning_rate='constant', random_state=42)` inside `GridSearchCV(cv=5, scoring='f1', n_jobs=-1)` per Section 5.2.
+> 3. **LinearSVC** — `CalibratedClassifierCV(LinearSVC(random_state=42), cv=5)` inside `GridSearchCV(cv=5, scoring='f1', n_jobs=-1)` with `estimator__C` and `estimator__max_iter` in the param grid per Section 5.3.
+> 4. **Random Forest** — `RandomForestClassifier(random_state=42, n_jobs=-1)` inside `RandomizedSearchCV(n_iter=20, cv=5, scoring='f1', random_state=42, n_jobs=-1)` per Section 5.4. Produce the n_estimators vs. F1 curve and top-15 feature importance chart.
+> 5. **XGBoost** — `XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)` with `scale_pos_weight` inside `RandomizedSearchCV(n_iter=20, cv=5, scoring='f1', random_state=42, n_jobs=-1)` per Section 5.5. Produce the top-15 feature importance chart.
+>
+> For each model: record `best_params`, `train_f1`, `test_f1`, all five metrics (accuracy, precision, recall, F1, ROC-AUC), and `cv_f1_scores` (5-fold stratified CV on training set). Produce the confusion matrix. Optionally checkpoint the model to `results/<tag>_results.pkl` immediately after training — but the notebook must not depend on these files existing at the start. Include a "Lecture 4 connection" markdown section per PHASES.md §2.4 for each model.
+>
+> **After all five models are trained**, build using in-memory variables (not by reloading pkl files): (a) **5-model comparison table** per Section 7.5, (b) **ROC-curve overlay** with AUCs in the legend, (c) **Precision-Recall curve overlay**, (d) **Train-vs-Test F1 bar chart** (5 models × 2 bars), (e) **5-fold CV box plot** across models. Save the comparison table as `results/comparison_table.csv`.
+>
+> **Inference Stage** (Section 8): apply the saved scaler/encoder from `prepared_data.pkl` to `df_inference_raw` — never refit. Run `.predict` and `.predict_proba` of the best-performing model selected by Section 8.2's data-driven rule. Display a results table with true label, predicted label, and risk probability.
+>
+> Cite Lecture 4 by concept throughout (nearest-neighbor, perceptron + learning rule, maximum-margin separator, loss functions, regularization) rather than by slide number.
+>
+> **Apply the presentation style conventions in `PHASE6_PRESENTATION_APPENDIX.md` in full** — collapsed cells, open key outputs, appendix section at the bottom — so the notebook is ready to present without any modification after "Run All".
 
 ### 5.4 Final compliance pass (team does last)
 
