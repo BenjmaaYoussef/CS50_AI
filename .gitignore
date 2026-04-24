@@ -1,6 +1,12 @@
 # Large binary artifacts — regenerate by running notebooks/01_preprocessing.ipynb
 artifacts/*.pkl
 
+# Model result pickles — binary, store in Google Drive instead
+results/*.pkl
+
+# Personal notes
+(AI:LLM should not read this)Notes.txt
+
 # Python
 __pycache__/
 *.py[cod]

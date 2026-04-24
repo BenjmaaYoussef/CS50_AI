@@ -193,7 +193,16 @@ Each phase uses the same template. Fill in the model-specific row from the table
 | 4 | Random Forest | `notebooks/05_model_rf.ipynb` | `results/rf_results.pkl` | 5.4 | standard `RandomForestClassifier` (no scaling needed but pipeline applies it) | **RandomizedSearchCV n_iter=20** | **n_estimators vs. F1 curve**, **feature-importance bar chart (top 15)** |
 | 5 | XGBoost | `notebooks/06_model_xgb.ipynb` | `results/xgb_results.pkl` | 5.5 | `XGBClassifier(..., eval_metric='logloss', n_jobs=-1)`, handle class imbalance via `scale_pos_weight` if imbalanced | **RandomizedSearchCV n_iter=20** | **feature-importance bar chart (top 15)** |
 
-### 4.3 Per-phase prompts (copy-paste into each parallel Claude Code session)
+### 4.3 Execution flow (follow this for every phase)
+
+1. **Claude writes** the notebook locally → push to GitHub.
+2. **Colab opens** the notebook from GitHub → runs it → pushes the executed notebook (with outputs) back to GitHub. Save `results/<tag>_results.pkl` to Google Drive.
+3. **Pull** the executed notebook locally. Download `results/<tag>_results.pkl` from Drive into the local `results/` folder.
+4. **Claude reviews** outputs, checks comments, and verifies the `*_results.pkl` schema.
+
+> `results/*.pkl` files are binary — do not commit them to git. Keep them in the shared Google Drive folder and download locally as needed.
+
+### 4.4 Per-phase prompts (copy-paste into each parallel Claude Code session)
 
 #### Phase 1 prompt — k-NN
 > Implement Section 5.1 of `docs.md` as `notebooks/02_model_knn.ipynb`. Load `artifacts/prepared_data.pkl` as the sole data source. Apply the 25K `resample(..., replace=False, stratify=y_train, random_state=42)` subsample (bug-prevention note in docs.md). Use `KNeighborsClassifier(algorithm='ball_tree', n_jobs=-1)` inside `GridSearchCV(cv=5, scoring='f1', n_jobs=-1)` over the grid in the docs.md table. Produce the confusion matrix, the **k vs. F1 validation curve**, and 5-fold Stratified CV F1 scores on the *subsampled* training set. Include a "Lecture 4 connection" section naming nearest-neighbor classification as the direct lecture concept and writing the Euclidean distance + majority-vote formulas. Save to `results/knn_results.pkl` using the schema in PHASES.md §2.3. Do not touch any file outside `notebooks/02_model_knn.ipynb` and `results/knn_results.pkl`.
@@ -210,7 +219,7 @@ Each phase uses the same template. Fill in the model-specific row from the table
 #### Phase 5 prompt — XGBoost
 > Implement Section 5.5 of `docs.md` as `notebooks/06_model_xgb.ipynb`. Load `artifacts/prepared_data.pkl`. Use `XGBClassifier(eval_metric='logloss', random_state=42, n_jobs=-1)` — compute `scale_pos_weight = sum(y_train==0)/sum(y_train==1)` and pass it if class balance requires it. Run `RandomizedSearchCV(n_iter=20, cv=5, scoring='f1', random_state=42, n_jobs=-1)` over the docs.md grid (`n_estimators`, `learning_rate`, `max_depth`, `subsample`, `colsample_bytree`). Produce confusion matrix, metrics, 5-fold CV F1, and **feature-importance bar chart (top 15)**. Include a "Lecture 4 connection" section explicitly flagging XGBoost as one of the two allowed out-of-class extensions: write the XGBoost objective `ℒ(t) = Σ ℓ(yᵢ, ŷᵢ(t-1) + fₜ(xᵢ)) + Ω(fₜ)` with `Ω(fₜ) = γT + ½λ‖w‖²` and identify it as a literal instance of Lecture 4's cost(h) = loss(h) + λ·complexity(h). Save to `results/xgb_results.pkl` using the schema in PHASES.md §2.3. Do not touch any file outside `notebooks/06_model_xgb.ipynb` and `results/xgb_results.pkl`.
 
-### 4.4 Per-phase checklist (each session must tick all)
+### 4.5 Per-phase checklist (each session must tick all)
 
 - [ ] Loads only `artifacts/prepared_data.pkl` — no raw-CSV access.
 - [ ] No scaler / encoder fitting.
